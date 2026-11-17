@@ -49,7 +49,7 @@ alias.watch()
 - **What the user sees before sending:** `preview_telemetry()` gives `{telemetry, context, removable}`
   with the rules applied, and the product's removable paths that are present. Let the user untick
   those, then `AliasSupport.remove_paths(telemetry, chosen)` and pass the result to `report`.
-- **Hiding things in a screenshot:** `AliasRedactor.open(parent, image)` opens a full-screen editor with
+- **Hiding things in a screenshot:** `AliasRedactor.open(parent, image, language, labels)` opens a full-screen editor with
   solid boxes, a brush, undo, clear, cancel and done (mouse, touch, Esc, Ctrl+Z). Then
   `await r.finished` gives the flattened `Image`, or null if cancelled. There's no blur: blur can be
   undone. `AliasRedactor.jpeg(img)` or `.png(img)` encodes it with no metadata. The ops are a list you
@@ -65,6 +65,17 @@ alias.watch()
   live (at once if someone's at the desk, else asked for). While watching, the `live` signal brings the
   ticket's `mode`, support's `typing` (with `name`) and `read` events; send yours with `typing(id)` (passed on
   once every 2 s) and `mark_read(id)`.
+- **Language:** `alias.language` (default `OS.get_locale_language()`; `"pl"`, `"pl_PL"` are fine) is sent
+  as `Accept-Language` on every call; `""` sends none. The product's own words (its name, its fields'
+  labels, its contact consent) come in it where the product has them, else as written (`product.lang`
+  says which: `""` for as written); the built-in consent text and the service's refusals come in it where
+  ALIAS has them. A consent's `version` is its text's, so the Polish text is agreed to as itself.
+- **Words built in:** English (`en`) and Polish (`pl`) in `AliasWords` (any other language gets English):
+  the redactor's buttons, a ticket's status (`status_<status>`), `you`, `support`, `agent` ("Automated
+  reply"), `agree`, and `new_answers` with plural forms. `alias.words()` gives them for `alias.language`,
+  `alias.labels` (a dictionary) over them; `alias.plural(3, "new_answers")` is "3 nowe odpowiedzi" in
+  Polish (one, few, many as Polish has them). The redactor takes them too:
+  `AliasRedactor.open(self, img, alias.language, alias.labels)`.
 - **A revoked key:** a failed call's result has `code` `"key_revoked"` when this build's key was revoked,
   and `reason`, support's words for the player when they gave some ("This version is no longer
   supported"), to show as they are.

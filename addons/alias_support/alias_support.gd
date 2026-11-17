@@ -43,6 +43,12 @@ signal identity_changed # made, moved in (a transfer, typed in), or forgotten (e
 @export var stream := true
 ## Apply the product's redaction rules here before sending (the service applies them anyway).
 @export var redact := true
+## The game's language ("pl", "en_GB"), sent as Accept-Language: the product's own words (its name,
+## fields, contact consent) come in it where the product has them (`product.lang` says which; "" for as
+## written), and the service's refusals. Default: the system's (OS.get_locale_language()); "": none sent.
+var language := OS.get_locale_language()
+## The game's own words, over the built-in ones (AliasWords) for `language`: see words().
+var labels := {}
 
 var context_provider := Callable() # () -> Dictionary: the product's context fields for a report
 var telemetry_provider := Callable() # () -> Dictionary: its telemetry
@@ -479,8 +485,23 @@ static func _jpeg(s: Variant) -> String:
 		return Marshalls.raw_to_base64(s)
 	return ""
 
-func _headers(ctype: Variant, who: Dictionary) -> PackedStringArray:
+## The words for `language` (AliasWords: English, Polish; English for any other), `labels` over them.
+func words() -> Dictionary:
+	return AliasWords.words(language, labels)
+
+## A count in `language`'s plural forms: plural(3, "new_answers") is "3 new answers", "3 nowe odpowiedzi".
+func plural(n: int, word: String) -> String:
+	var forms: Variant = words().get(word, [])
+	return AliasWords.plural(n, forms if forms is Array else [forms], language)
+
+func _base_headers() -> PackedStringArray:
 	var h := PackedStringArray(["X-Alias-Key: " + key, "Accept: application/json"])
+	if language != "":
+		h.append("Accept-Language: " + language.replace("_", "-"))
+	return h
+
+func _headers(ctype: Variant, who: Dictionary) -> PackedStringArray:
+	var h := _base_headers()
 	var i: String = who.get("id", kept.id if kept != null else "")
 	var s: String = who.get("secret", kept.secret if kept != null else "")
 	if i != "":
@@ -503,7 +524,7 @@ func _send(method: int, path: String, body: PackedByteArray, ctype: String, as_u
 		var idr: Dictionary = await identity()
 		if not idr.ok:
 			return idr
-	var headers := _headers(ctype, who) if as_user else PackedStringArray(["X-Alias-Key: " + key, "Accept: application/json"] + (["Content-Type: " + ctype] if ctype != "" else []))
+	var headers := _headers(ctype, who) if as_user else _base_headers() + PackedStringArray(["Content-Type: " + ctype] if ctype != "" else [])
 	headers.append_array(extra)
 	var req := HTTPRequest.new()
 	req.timeout = 30.0

@@ -19,6 +19,10 @@ signal finished(image: Variant) # done's image, or null when cancelled
 const BOX := "box"
 const BRUSH := "brush"
 
+## The buttons' language ("pl", "pl_PL"; AliasWords: English, Polish; English for any other).
+var language := OS.get_locale_language()
+## The game's own words over them: {box, brush, undo, clear, cancel, done}.
+var labels := {}
 @export var paint := Color.BLACK
 @export var brush_radius := 18.0 # in the image's pixels
 
@@ -32,10 +36,14 @@ var _drag: Variant = null # the op being drawn
 var _start := Vector2.ZERO
 var _tools := {}
 
-## A redactor over the parent (full rect), for this image.
-static func open(parent: Node, image: Image) -> AliasRedactor:
+## A redactor over the parent (full rect), for this image; its words in language ("": the system's),
+## labels over them (AliasSupport's: open(self, img, alias.language, alias.labels)).
+static func open(parent: Node, image: Image, language := "", labels := {}) -> AliasRedactor:
 	var r := AliasRedactor.new()
 	r.source = image
+	if language != "":
+		r.language = language
+	r.labels = labels
 	r.set_anchors_preset(Control.PRESET_FULL_RECT)
 	parent.add_child(r)
 	return r
@@ -55,12 +63,13 @@ func _ready() -> void:
 	var bar := HBoxContainer.new()
 	bar.alignment = BoxContainer.ALIGNMENT_CENTER
 	box.add_child(bar)
-	_tools[BOX] = _button(bar, "Box", func() -> void: _set_tool(BOX), true)
-	_tools[BRUSH] = _button(bar, "Brush", func() -> void: _set_tool(BRUSH), true)
-	_button(bar, "Undo", undo)
-	_button(bar, "Clear", clear)
-	_button(bar, "Cancel", cancel)
-	var ok := _button(bar, "Done", finish)
+	var w := AliasWords.words(language, labels)
+	_tools[BOX] = _button(bar, w.box, func() -> void: _set_tool(BOX), true)
+	_tools[BRUSH] = _button(bar, w.brush, func() -> void: _set_tool(BRUSH), true)
+	_button(bar, w.undo, undo)
+	_button(bar, w.clear, clear)
+	_button(bar, w.cancel, cancel)
+	var ok := _button(bar, w.done, finish)
 	ok.add_theme_color_override("font_color", Color(0.6, 1, 0.6))
 	_view = TextureRect.new()
 	_view.size_flags_vertical = Control.SIZE_EXPAND_FILL
